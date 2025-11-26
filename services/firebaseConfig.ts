@@ -4,14 +4,16 @@ import { getAuth, GoogleAuthProvider, signInWithPopup, signOut } from 'firebase/
 
 // Fallback values - will use environment variables if available
 const firebaseConfig = {
-  apiKey: process.env.EXPO_PUBLIC_FIREBASE_API_KEY || 'AIzaSyB_pHajHXy5PkqSGMHNOoA6HU5omPOsSY4',
-  authDomain: process.env.EXPO_PUBLIC_FIREBASE_AUTH_DOMAIN || 'database-of-books.firebaseapp.com',
-  databaseURL: process.env.EXPO_PUBLIC_FIREBASE_DATABASE_URL || 'https://database-of-books.firebaseio.com',
-  projectId: process.env.EXPO_PUBLIC_FIREBASE_PROJECT_ID || 'database-of-books',
-  storageBucket: process.env.EXPO_PUBLIC_FIREBASE_STORAGE_BUCKET || 'database-of-books.firebasestorage.app',
-  messagingSenderId: process.env.EXPO_PUBLIC_FIREBASE_MESSAGING_SENDER_ID || '716778116166',
-  appId: process.env.EXPO_PUBLIC_FIREBASE_APP_ID || '1:716778116166:web:599e33506ae70708412647',
+  apiKey: "AIzaSyB_pHajHXy5PkqSGMHNOoA6HU5omPOsSY4",
+  authDomain: "database-of-books.firebaseapp.com",
+  databaseURL: "https://database-of-books.firebaseio.com",
+  projectId: "database-of-books",
+  storageBucket: "database-of-books.firebasestorage.app",
+  messagingSenderId: "716778116166",
+  appId: "1:716778116166:web:599e33506ae70708412647",
+  measurementId: "G-B1VK8PLB36"
 };
+
 
 let app: any;
 let database: any;
