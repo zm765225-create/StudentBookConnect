@@ -9,15 +9,18 @@ import Animated, {
   useSharedValue,
   withSpring,
   FadeInDown,
-  FadeIn,
 } from 'react-native-reanimated';
 import * as Haptics from 'expo-haptics';
 import { useBottomTabBarHeight } from '@react-navigation/bottom-tabs';
 
+// --- استيراد أدوات Firebase ---
+import { ref, push, set } from 'firebase/database';
+import { database } from '@/services/firebaseConfig';
+// -----------------------------
+
 import { ThemedText } from '@/components/ThemedText';
 import { ThemedView } from '@/components/ThemedView';
 import { Colors, Spacing, BorderRadius, Shadows } from '@/constants/theme';
-import { useApp } from '@/store/AppContext';
 import { RootStackParamList } from '@/navigation/RootNavigator';
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
@@ -26,14 +29,12 @@ export default function StudentProfileScreen() {
   const insets = useSafeAreaInsets();
   const tabBarHeight = useBottomTabBarHeight();
   const navigation = useNavigation<NativeStackNavigationProp<RootStackParamList>>();
-  const { currentStudentId, getStudentById, addStudent, updateStudent, setCurrentStudent } = useApp();
 
-  const currentStudent = currentStudentId ? getStudentById(currentStudentId) : null;
-
-  const [name, setName] = useState(currentStudent?.name || '');
-  const [section, setSection] = useState(currentStudent?.section || '');
-  const [phone, setPhone] = useState(currentStudent?.phone || '');
-  const [isSaved, setIsSaved] = useState(!!currentStudent);
+  const [name, setName] = useState('');
+  const [section, setSection] = useState('');
+  const [phone, setPhone] = useState('');
+  const [isSaved, setIsSaved] = useState(false);
+  const [isLoading, setIsLoading] = useState(false); // عشان التحميل
 
   const buttonScale = useSharedValue(1);
   const checkScale = useSharedValue(0);
@@ -46,30 +47,55 @@ export default function StudentProfileScreen() {
     transform: [{ scale: checkScale.value }],
   }));
 
-  const handleSave = () => {
+  // --- دالة الحفظ الجديدة (بتبعت لـ Firebase مباشرة) ---
+  const handleSave = async () => {
     if (!name.trim()) {
       Alert.alert('تنبيه', 'الرجاء إدخال الاسم');
       return;
     }
 
-    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+    try {
+      setIsLoading(true); // شغل التحميل
+      
+      // 1. تحديد مكان الحفظ (قائمة students)
+      const studentsRef = ref(database, 'students');
+      
+      // 2. عمل مكان جديد للطالب
+      const newStudentRef = push(studentsRef);
+      
+      // 3. إرسال البيانات
+      await set(newStudentRef, {
+        name: name.trim(),
+        section: section.trim(),
+        phone: phone.trim(),
+        createdAt: new Date().toISOString(), // تاريخ التسجيل
+        device: Platform.OS // نوع الجهاز
+      });
 
-    if (currentStudent) {
-      updateStudent(currentStudent.id, { name: name.trim(), section: section.trim(), phone: phone.trim() });
-    } else {
-      const newStudent = addStudent({ name: name.trim(), section: section.trim(), phone: phone.trim(), academicYear: '25' });
-      setCurrentStudent(newStudent.id);
+      // نجاح!
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      setIsSaved(true);
+      checkScale.value = withSpring(1, { damping: 10 });
+      
+      Alert.alert('تم بنجاح', 'تم تسجيل بياناتك ووصلت للمسؤول');
+
+      // تفريغ الخانات (اختياري)
+      /* setName(''); setSection(''); setPhone(''); */
+
+    } catch (error) {
+      console.error(error);
+      Alert.alert('خطأ', 'تأكد من اتصال الإنترنت وحاول مجدداً');
+    } finally {
+      setIsLoading(false); // وقف التحميل
+      setTimeout(() => {
+        checkScale.value = withSpring(0);
+        setIsSaved(false);
+      }, 3000);
     }
-
-    setIsSaved(true);
-    checkScale.value = withSpring(1, { damping: 10 });
-    setTimeout(() => {
-      checkScale.value = withSpring(0);
-    }, 2000);
   };
+  // -------------------------------------------------------
 
   const handleExit = () => {
-    setCurrentStudent(null);
     navigation.dispatch(
       CommonActions.reset({
         index: 0,
@@ -98,7 +124,7 @@ export default function StudentProfileScreen() {
               <Feather name="user" size={40} color={Colors.light.primary} />
             </View>
             <ThemedText style={styles.title}>بياناتي</ThemedText>
-            <ThemedText style={styles.subtitle}>أدخل بياناتك للمتابعة</ThemedText>
+            <ThemedText style={styles.subtitle}>سجل بياناتك لتظهر عند المسؤول</ThemedText>
           </Animated.View>
 
           <Animated.View entering={FadeInDown.delay(200).springify()} style={styles.formContainer}>
@@ -151,15 +177,16 @@ export default function StudentProfileScreen() {
 
             <AnimatedPressable
               onPress={handleSave}
+              disabled={isLoading}
               onPressIn={() => { buttonScale.value = withSpring(0.96); }}
               onPressOut={() => { buttonScale.value = withSpring(1); }}
-              style={[styles.saveButton, buttonStyle]}
+              style={[styles.saveButton, buttonStyle, { opacity: isLoading ? 0.7 : 1 }]}
             >
               <Animated.View style={[styles.checkIcon, checkStyle]}>
                 <Feather name="check" size={24} color="#FFFFFF" />
               </Animated.View>
               <ThemedText style={styles.saveButtonText}>
-                {isSaved ? 'تم الحفظ' : 'حفظ البيانات'}
+                {isLoading ? 'جاري الإرسال...' : (isSaved ? 'تم الإرسال' : 'إرسال البيانات')}
               </ThemedText>
             </AnimatedPressable>
           </Animated.View>
